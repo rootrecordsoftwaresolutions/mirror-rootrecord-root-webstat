@@ -1,0 +1,39 @@
+# Root-Webstat — per-server stats site + JSON APIs.
+#
+# Flow (all hosts):
+#   1. At each vanilla MC day boundary (fullTime / 24000), this host recomputes series
+#      (total / average / mean / median / highest / lowest) and writes stats.json.
+#   2. Cloudflare cron later reads every registered product-key server and stores
+#      each published value into a dedicated webstat D1 (no math on the Worker).
+# All servers MUST use vanilla 24000-tick days so mc_day_id lines up.
+
+enabled: true
+
+web:
+  bind: "0.0.0.0"
+  # HTTP listen port for this host's site + /stats.json (cron may pull here).
+  # Live Shockbyte additional ports: Claims 28305 · Towny 29652 (set per host).
+  port: 8765
+  # Public base URL for CF pull (e.g. http://play.rootmc.net:28305). Blank = listen-only.
+  public-url: ""
+  # Optional access token (?token=… or X-RootWebstat-Token).
+  token: ""
+
+stats:
+  # Overworld used for vanilla day id (blank = first NORMAL world).
+  day-world: ""
+  # Recompute when vanilla day increments (required for network alignment).
+  on-vanilla-day: true
+  # Optional safety refresh between days (0 = off). Day rollover is the source of truth.
+  refresh-seconds: 0
+  economy-table-prefix: ""
+  include-zero-balances: false
+
+cloud:
+  # After each day snapshot, POST to api.rootmc (Worker/D1 ingest). Cron can also pull /stats.json.
+  push-enabled: true
+  # Interval push is optional backup (0 = only on day rollover /webstat push).
+  push-interval-seconds: 0
+
+# Display override (blank = Root-Core server-name).
+server-name: ""
