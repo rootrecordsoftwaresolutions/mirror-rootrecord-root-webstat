@@ -192,7 +192,7 @@ public final class StatsEngine {
         if (db == null || !db.isConfigured()) {
             return StatSeries.empty("playtime_seconds", "s");
         }
-        String table = cfg.economyTablePrefix() + "root_playtime";
+        String table = cfg.economyTablePrefix() + "playtime";
         String sql = "SELECT username, seconds FROM " + table
                 + " WHERE scope = '*' AND seconds > 0";
         List<Double> amounts = new ArrayList<>();
@@ -208,7 +208,21 @@ public final class StatsEngine {
                 }
             }
         } catch (Exception ex) {
-            return StatSeries.empty("playtime_seconds", "s");
+            // try Towny legacy table name
+            try {
+                String alt = cfg.economyTablePrefix() + "rootmc_playtime";
+                try (Connection c = DriverManager.getConnection(db.jdbcUrl(), db.username(), db.password());
+                     PreparedStatement ps = c.prepareStatement(
+                             "SELECT username, seconds FROM " + alt + " WHERE scope = '*' AND seconds > 0");
+                     ResultSet rs = ps.executeQuery()) {
+                    while (rs.next()) {
+                        amounts.add(rs.getDouble("seconds"));
+                        names.add(rs.getString("username"));
+                    }
+                }
+            } catch (Exception ignored) {
+                return StatSeries.empty("playtime_seconds", "s");
+            }
         }
         if (amounts.isEmpty()) {
             return StatSeries.empty("playtime_seconds", "s");

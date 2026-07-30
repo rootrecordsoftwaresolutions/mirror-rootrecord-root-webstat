@@ -3,81 +3,74 @@
     return document.querySelector(sel);
   }
 
-  function fmt(n, unit) {
-    if (n == null || !Number.isFinite(Number(n))) return "—";
-    var v = Number(n);
-    var s = Math.abs(v) >= 1000
-      ? v.toLocaleString(undefined, { maximumFractionDigits: 2 })
-      : v.toLocaleString(undefined, { maximumFractionDigits: 3 });
-    return unit ? s + " " + unit : s;
-  }
-
-  function card(id, series) {
-    var unit = series.unit || "";
-    var keys = [
-      ["total", "Total"],
-      ["average", "Average"],
-      ["mean", "Mean"],
-      ["median", "Median"],
-      ["highest", "Highest"],
-      ["lowest", "Lowest"],
-      ["count", "Count"],
-    ];
-    var stats = keys
-      .map(function (k) {
-        var val = k[0] === "count" ? String(series.count ?? 0) : fmt(series[k[0]], unit);
-        return '<div class="stat"><span>' + k[1] + "</span><strong>" + val + "</strong></div>";
-      })
-      .join("");
-    var holders = "";
-    if (series.highest_holder || series.lowest_holder) {
-      holders =
-        '<p class="holders">High: <strong>' +
-        (series.highest_holder || "—") +
-        "</strong> · Low: <strong>" +
-        (series.lowest_holder || "—") +
-        "</strong></p>";
-    }
-    return (
-      '<section class="card"><h2>' +
-      id +
-      '</h2><div class="stats">' +
-      stats +
-      "</div>" +
-      holders +
-      "</section>"
-    );
-  }
-
-  function render(data) {
-    q("#server-name").textContent = data.server_name || "Server";
-    document.title = (data.server_name || "Server") + " · Webstat";
-    q("#meta").textContent =
-      "server " +
-      (data.server_id || "?") +
-      " · computed " +
-      (data.computed_at || "—");
-    var series = data.series || {};
-    var ids = Object.keys(series);
-    q("#root").innerHTML = ids.length
-      ? ids.map(function (id) {
-          return card(id, series[id]);
-        }).join("")
-      : '<p class="meta">No series yet.</p>';
-  }
-
-  function tokenQuery() {
+  function tokenSuffix() {
     var m = location.search.match(/[?&]token=([^&]+)/);
     return m ? "?token=" + encodeURIComponent(decodeURIComponent(m[1])) : "";
   }
 
-  fetch("/stats.json" + tokenQuery(), { cache: "no-store" })
+  function withToken(path) {
+    var t = tokenSuffix();
+    if (!t) return path;
+    return path + (path.indexOf("?") >= 0 ? "&" : "?") + t.slice(1);
+  }
+
+  function render(data) {
+    q("#server-name").textContent = data.server_name || "Server";
+    document.title = (data.server_name || "Server") + " · Webstat · RootMC";
+    q("#meta").textContent =
+      "server " +
+      (data.server_id || "?") +
+      " · computed " +
+      (data.computed_at || "—") +
+      " · windows " +
+      ((data.windows || []).join(" · ") || "—");
+    var list = data.datasets || [];
+    q("#root").innerHTML = list.length
+      ? list
+          .map(function (d) {
+            var href = d.href || "/data.html?set=" + encodeURIComponent(d.id);
+            href = withToken(href);
+            return (
+              '<a class="webstat-catalog-item" href="' +
+              href +
+              '"><strong>' +
+              (d.title || d.id) +
+              "</strong><span>" +
+              (d.description || "") +
+              "</span><code>" +
+              (d.api || "") +
+              "</code></a>"
+            );
+          })
+          .join("")
+      : '<p class="webstat-meta">No datasets yet — wait for the next recompute.</p>';
+  }
+
+  var linkLogs = q("#link-logs");
+  if (linkLogs) linkLogs.href = withToken("/logs/");
+  var tail = document.querySelector('a[href^="/api/logs/tail"]');
+  if (tail) tail.href = withToken("/api/logs/tail.json?lines=200");
+
+  fetch("/api/health" + tokenSuffix(), { cache: "no-store" })
+    .then(function (r) {
+      return r.ok ? r.json() : null;
+    })
+    .then(function (h) {
+      var nav = q("#local-nav");
+      if (!nav) return;
+      if (h && h.features && h.features.logs_page === false) {
+        nav.hidden = true;
+      }
+    })
+    .catch(function () {});
+
+  fetch("/api/data/index.json" + tokenSuffix(), { cache: "no-store" })
     .then(function (r) {
       if (!r.ok) throw new Error("HTTP " + r.status);
       return r.json();
     })
     .then(render)
     .catch(function (e) {
-      q("#meta").textContent = "Failed to load stats.json: " + e.message;
+      q("#meta").textContent = "Failed to load catalog: " + e.message;
     });
 })();

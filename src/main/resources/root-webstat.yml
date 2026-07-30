@@ -9,12 +9,24 @@
 
 enabled: true
 
+# Isolate each capability. Missing keys default to true (safe for existing live files).
+features:
+  http-site: true
+  stats-api: true
+  data-api: true
+  health-api: true
+  stats-day-recompute: true
+  cloud-push: true
+  logs-page: true
+  logs-tail: true
+  logs-download: true
+
 web:
   bind: "0.0.0.0"
   # HTTP listen port for this host's site + /stats.json (cron may pull here).
   # Live Shockbyte additional ports: Claims 28305 · Towny 29652 (set per host).
   port: 8765
-  # Public base URL for CF pull (e.g. http://play.rootmc.net:28305). Blank = listen-only.
+  # Public HTTPS base for CF pull (e.g. https://claims.rootmc.net). Blank = listen-only.
   public-url: ""
   # Optional access token (?token=… or X-RootWebstat-Token).
   token: ""
@@ -22,7 +34,7 @@ web:
 stats:
   # Overworld used for vanilla day id (blank = first NORMAL world).
   day-world: ""
-  # Recompute when vanilla day increments (required for network alignment).
+  # Recompute when vanilla day increments (also requires features.stats-day-recompute).
   on-vanilla-day: true
   # Optional safety refresh between days (0 = off). Day rollover is the source of truth.
   refresh-seconds: 0
@@ -30,10 +42,14 @@ stats:
   include-zero-balances: false
 
 cloud:
-  # After each day snapshot, POST to api.rootmc (Worker/D1 ingest). Cron can also pull /stats.json.
+  # After each day snapshot, POST to api.rootmc (also requires features.cloud-push).
   push-enabled: true
   # Interval push is optional backup (0 = only on day rollover /webstat push).
   push-interval-seconds: 0
+
+logs:
+  max-tail-lines: 500
+  max-download-bytes: 2097152
 
 # Display override (blank = Root-Core server-name).
 server-name: ""

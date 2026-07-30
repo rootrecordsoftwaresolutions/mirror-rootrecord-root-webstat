@@ -19,6 +19,7 @@ public final class RootWebstatPlugin extends JavaPlugin {
     private RootRecordYamlConfig yaml;
     private WebstatConfig config;
     private StatsEngine stats;
+    private WebstatDataCatalog dataCatalog;
     private WebstatHttpServer http;
     private CloudPushService cloud;
     private VanillaDayWatcher dayWatcher;
@@ -33,6 +34,7 @@ public final class RootWebstatPlugin extends JavaPlugin {
         yaml.load();
         config = WebstatConfig.from(this, yaml.config());
         stats = new StatsEngine(this);
+        dataCatalog = new WebstatDataCatalog(this);
         http = new WebstatHttpServer(this);
         cloud = new CloudPushService(this);
         dayWatcher = new VanillaDayWatcher(this);
@@ -85,6 +87,7 @@ public final class RootWebstatPlugin extends JavaPlugin {
         getLogger().info("Vanilla day " + completedDayId + " → " + currentDayId + " — recomputing webstat.");
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             String json = stats.recompute(completedDayId, currentDayId, fullTime);
+            dataCatalog.recomputeAll();
             cloud.writeLocalSnapshot(json);
             if (config.pushEnabled()) {
                 cloud.pushNow();
@@ -95,6 +98,7 @@ public final class RootWebstatPlugin extends JavaPlugin {
     public void refreshStats(boolean push) {
         Bukkit.getScheduler().runTaskAsynchronously(this, () -> {
             String json = stats.recompute();
+            dataCatalog.recomputeAll();
             cloud.writeLocalSnapshot(json);
             if (push && config.pushEnabled()) {
                 cloud.pushNow();
@@ -158,6 +162,10 @@ public final class RootWebstatPlugin extends JavaPlugin {
 
     public StatsEngine stats() {
         return stats;
+    }
+
+    public WebstatDataCatalog dataCatalog() {
+        return dataCatalog;
     }
 
     public WebstatHttpServer http() {
